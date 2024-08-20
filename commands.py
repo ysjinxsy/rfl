@@ -178,10 +178,12 @@ async def lineup(interaction: nextcord.Interaction):
                     continue
 
             try:
-                with io.BytesIO() as buffer:
-                    lineup_image.save(buffer, format="PNG")
-                    buffer.seek(0)
-                    await interaction.followup.send("Here is your lineup image:", file=nextcord.File(fp=buffer, filename="lineup.png"))
+                # Save the image to a file
+                file_path = "lineup.png"
+                lineup_image.save(file_path)
+
+                # Send the file to Discord
+                await interaction.followup.send("Here is your lineup image:", file=nextcord.File(file_path))
             except Exception as e:
                 await interaction.followup.send(f"Failed to generate lineup image: {e}")
 
@@ -194,17 +196,15 @@ def calculate_chemistry(cards):
     countries = {}
 
     for card in cards:
-        _, _, _, _, club, country, _ = card  # Unpack the correct number of values
+        _, _, _, _, club, country, _ = card
         clubs[club] = clubs.get(club, 0) + 1
         countries[country] = countries.get(country, 0) + 1
 
     max_club_chemistry = max(clubs.values(), default=0)
     max_country_chemistry = max(countries.values(), default=0)
 
-    # Calculate overall chemistry level
     chemistry = max_club_chemistry + max_country_chemistry
 
-    # Determine the chemistry performance level
     if max_club_chemistry >= 5 or max_country_chemistry >= 5:
         level = 'green'
     elif max_club_chemistry >= 3 or max_country_chemistry >= 3:
@@ -215,13 +215,10 @@ def calculate_chemistry(cards):
     return chemistry, level
 
 
-
 async def download_image(url: str) -> bytes:
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
             return await response.read()
-
-
 
 @client.slash_command(name="balance", description="Check your current balance.", guild_ids=[guild_id])
 async def balance(interaction: Interaction):
