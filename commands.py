@@ -118,19 +118,10 @@ async def lineup(interaction: nextcord.Interaction):
                 return
 
             # Download chemistry level images
-            try:
-                chemistry_images = {}
-                for level_name, url in CHEMISTRY_IMAGES_URLS.items():
-                    try:
-                        image_data = await download_image(url)
-                        chemistry_images[level_name] = Image.open(io.BytesIO(image_data)).resize((25, 25))
-                    except Exception as e:
-                        print(f"Failed to process image for {level_name}: {e}")
-                        await interaction.followup.send(f"Failed to process {level_name} image.")
-            except Exception as e:
-                print(f"Failed to load chemistry images: {e}")
-                await interaction.followup.send("Failed to load chemistry images.")
-                return
+            chemistry_images = {}
+            for level_name, url in CHEMISTRY_IMAGES_URLS.items():
+                image_data = await download_image(url)
+                chemistry_images[level_name] = Image.open(io.BytesIO(image_data)).resize((25, 25))
 
             lineup_width, lineup_height = 892, 725
             card_width, card_height = 110, 155
@@ -166,24 +157,22 @@ async def lineup(interaction: nextcord.Interaction):
             }
 
             for card in cards:
-                try:
-                    name, position, ovr, price, club, country, image_blob = card
-                    coords = position_coords.get(position, (0, 0))
+                name, position, ovr, price, club, country, image_blob = card
+                coords = position_coords.get(position, (0, 0))
 
-                    card_image = Image.open(io.BytesIO(image_blob)).resize((card_width, card_height))
-                    lineup_image.paste(card_image, coords, card_image.convert("RGBA"))
-
-                except Exception as e:
-                    print(f"Error processing card {card}: {e}")
-                    continue
+                card_image = Image.open(io.BytesIO(image_blob)).resize((card_width, card_height))
+                lineup_image.paste(card_image, coords, card_image.convert("RGBA"))
 
             try:
-                # Save the image to a file
-                file_path = "lineup.png"
+                # Save the image to a temporary file
+                file_path = "lineup_temp.png"
                 lineup_image.save(file_path)
 
                 # Send the file to Discord
                 await interaction.followup.send("Here is your lineup image:", file=nextcord.File(file_path))
+
+                # Optionally, delete the temporary file after sending
+                os.remove(file_path)
             except Exception as e:
                 await interaction.followup.send(f"Failed to generate lineup image: {e}")
 
@@ -219,7 +208,6 @@ async def download_image(url: str) -> bytes:
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
             return await response.read()
-
 @client.slash_command(name="balance", description="Check your current balance.", guild_ids=[guild_id])
 async def balance(interaction: Interaction):
     await interaction.response.defer()
@@ -388,13 +376,17 @@ async def switch(interaction: Interaction, card_name: str, new_position: str):
 cooldown_end_times = {}
 COOLDOWN_DURATION = 86400  # 24 hours in seconds
 
+
 @client.slash_command(name="claim", description="Claim a random card and add it to your collection.", guild_ids=[guild_id])
 async def claim(interaction: Interaction):
     user_id = str(interaction.user.id)
     current_time = time.time()  # Get current time in seconds
+    
+    # ID of the user who can bypass the cooldown
+    BYPASS_USER_ID = 1211365819054030960 # Replace with the actual user ID
 
-    # Check if the user is on cooldown
-    if user_id in cooldown_end_times:
+    # Check if the user is on cooldown and does not bypass it
+    if user_id != BYPASS_USER_ID and user_id in cooldown_end_times:
         end_time = cooldown_end_times[user_id]
         if current_time < end_time:
             await interaction.response.send_message(
@@ -528,7 +520,8 @@ async def claim(interaction: Interaction):
         await interaction.followup.send(embed=embed, view=view, files=[nextcord.File(fp=io.BytesIO(image_blob), filename="card_image.png")])
 
         # Set cooldown end time for the user
-        cooldown_end_times[user_id] = current_time + COOLDOWN_DURATION
+        if user_id != BYPASS_USER_ID:
+            cooldown_end_times[user_id] = current_time + COOLDOWN_DURATION
 
         # Optionally, remove expired cooldowns periodically
         async def cleanup_expired_cooldowns():
@@ -547,10 +540,6 @@ async def claim(interaction: Interaction):
             await interaction.followup.send(f"An error occurred: {e}")
         else:
             await interaction.response.send_message(f"An error occurred: {e}")
-
-
-
-
 
 @client.slash_command(name="delete_user_collection", description="Remove all cards from a user's collection (admin only).",guild_ids=[guild_id])
 async def delete_user_collection(interaction: Interaction, user_id: str):
