@@ -80,38 +80,6 @@ CHEMISTRY_IMAGES_URLS = {
     'red': "https://cdn.discordapp.com/attachments/1187893488763805750/1275752069126557810/red.png?ex=66c70833&is=66c5b6b3&hm=ddb0452a63360c2da929f76e47e5e435b792b62e2e29fd884fc4bf93d076b3aa&"
 }
 
-def calculate_chemistry(cards):
-    clubs = {}
-    countries = {}
-
-    for card in cards:
-        _, _, _, _, club, country, _ = card
-        clubs[club] = clubs.get(club, 0) + 1
-        countries[country] = countries.get(country, 0) + 1
-
-    max_club_chemistry = max(clubs.values(), default=0)
-    max_country_chemistry = max(countries.values(), default=0)
-
-    chemistry = max_club_chemistry + max_country_chemistry
-
-    if max_club_chemistry >= 5 or max_country_chemistry >= 5:
-        level = 'green'
-    elif max_club_chemistry >= 3 or max_country_chemistry >= 3:
-        level = 'orange'
-    else:
-        level = 'red'
-
-    return chemistry, level
-
-# Function to download image data from a URL
-async def download_image(url: str) -> bytes:
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url) as response:
-            if response.status != 200:
-                raise Exception(f"Failed to download image from {url}")
-            return await response.read()
-
-# Main slash command function
 @client.slash_command(name="lineup", description="View your card collection in a lineup image.", guild_ids=[guild_id])
 async def lineup(interaction: nextcord.Interaction):
     await interaction.response.defer()
@@ -119,9 +87,9 @@ async def lineup(interaction: nextcord.Interaction):
     user_id = str(interaction.user.id)
     username = interaction.user.name
 
-    try:
-        # Fetch cards from the user's lineup
-        async with aiosqlite.connect(DATABASE_PATH) as db:
+    async with aiosqlite.connect(DATABASE_PATH) as db:
+        try:
+            # Fetch cards from the user's lineup
             async with db.execute('''
                 SELECT cards.name, cards.position, cards.ovrate, cards.price, cards.club, cards.country, cards.image_blob
                 FROM cards
@@ -130,93 +98,95 @@ async def lineup(interaction: nextcord.Interaction):
             ''', (user_id,)) as cursor:
                 cards = await cursor.fetchall()
 
-        if not cards:
-            await interaction.followup.send("You don't have any cards in your lineup yet.")
-            return
+            if not cards:
+                await interaction.followup.send("You don't have any cards in your lineup yet.")
+                return
 
-        chemistry, level = calculate_chemistry(cards)
+            chemistry, level = calculate_chemistry(cards)
 
-        # Calculate OVR RATING and OVR VALUE
-        total_ovr = sum(card[2] for card in cards)
-        total_value = sum(card[3] for card in cards)
+            # Calculate OVR RATING and OVR VALUE
+            total_ovr = sum(card[2] for card in cards)
+            total_value = sum(card[3] for card in cards)
 
-        # Load background image
-        background_url = "https://cdn.discordapp.com/attachments/1224847916750082058/1275747929612746795/lineupahh.png?ex=66c70458&is=66c5b2d8&hm=38d20c0e2a73b00232102caa1f8d906b170467edd5192aa20118bdea4d139960&"
-        background_image_data = await download_image(background_url)
-        background_image = Image.open(io.BytesIO(background_image_data))
+            background_url = "https://cdn.discordapp.com/attachments/1266732349417193619/1275567757076860979/lineupahh.png"
 
-        # Download and resize chemistry level images
-        chemistry_images = {}
-        for level_name, url in CHEMISTRY_IMAGES_URLS.items():
-            image_data = await download_image(url)
-            chemistry_images[level_name] = Image.open(io.BytesIO(image_data)).resize((25, 25))
+            try:
+                background_image_data = await download_image(background_url)
+                background_image = Image.open(io.BytesIO(background_image_data))
+            except Exception as e:
+                await interaction.followup.send("Failed to load background image.")
+                return
 
-        # Create the lineup image
-        lineup_image = create_lineup_image(background_image, cards, total_ovr, total_value, username, chemistry_images[level])
+            # Download chemistry level images
+            try:
+                chemistry_images = {}
+                for level_name, url in CHEMISTRY_IMAGES_URLS.items():
+                    try:
+                        image_data = await download_image(url)
+                        chemistry_images[level_name] = Image.open(io.BytesIO(image_data)).resize((25, 25))
+                    except Exception as e:
+                        print(f"Failed to process image for {level_name}: {e}")
+                        await interaction.followup.send(f"Failed to process {level_name} image.")
+            except Exception as e:
+                print(f"Failed to load chemistry images: {e}")
+                await interaction.followup.send("Failed to load chemistry images.")
+                return
 
-        # Save and send the lineup image
-        await send_lineup_image(interaction, lineup_image)
+            lineup_width, lineup_height = 892, 725
+            card_width, card_height = 110, 155
 
-    except Exception as e:
-        await interaction.followup.send(f"An error occurred: {e}")
+            lineup_image = background_image.resize((lineup_width, lineup_height))
+            draw = ImageDraw.Draw(lineup_image)
 
-# Function to create the lineup image
-def create_lineup_image(background_image, cards, total_ovr, total_value, username, chemistry_image):
-    lineup_width, lineup_height = 892, 725
-    card_width, card_height = 110, 155
+            # Load custom font
+            font_path = "FFGoodProCond-Black.ttf"  # Update with your font file path
+            font = ImageFont.truetype(font_path, 24)
 
-    lineup_image = background_image.resize((lineup_width, lineup_height))
-    draw = ImageDraw.Draw(lineup_image)
+            # Add OVR RATING, OVR VALUE, and Chemistry text
+            draw.text((120, 8), f"OVR RATING:", font=font, fill="black")
+            draw.text((125, 27), f"{total_ovr}", font=font, fill="black")
+            draw.text((264, 8), f"OVR VALUE:", font=font, fill="black")
+            draw.text((270, 27), f"{format_number(total_value)}", font=font, fill="black")
+            draw.text((656, 13), f"Chemistry:", font=font, fill="black")
+            draw.text((459, 13), f"{username}", font=font, fill="black")
 
-    # Load custom font
-    font_path = "FFGoodProCond-Black.ttf"  # Update with your font file path
-    font = ImageFont.truetype(font_path, 24)
+            # Overlay the chemistry level image
+            chemistry_image = chemistry_images.get(level, chemistry_images['red'])
+            lineup_image.paste(chemistry_image, (746, 12), chemistry_image.convert("RGBA"))
 
-    # Add OVR RATING, OVR VALUE, and Chemistry text
-    draw.text((120, 8), "OVR RATING:", font=font, fill="black")
-    draw.text((125, 27), f"{total_ovr}", font=font, fill="black")
-    draw.text((264, 8), "OVR VALUE:", font=font, fill="black")
-    draw.text((270, 27), f"{format_number(total_value)}", font=font, fill="black")
-    draw.text((656, 13), "Chemistry:", font=font, fill="black")
-    draw.text((459, 13), f"{username}", font=font, fill="black")
+            position_coords = {
+                'ST': (395, 72),
+                'CAM': (395, 220),
+                'GK': (395, 516),
+                'LW': (170, 111),
+                'RW': (620, 111),
+                'CB': (395, 368),
+                'RB': (569, 368),
+                'LB': (221, 368)
+            }
 
-    # Overlay the chemistry level image
-    lineup_image.paste(chemistry_image, (746, 12), chemistry_image.convert("RGBA"))
+            for card in cards:
+                try:
+                    name, position, ovr, price, club, country, image_blob = card
+                    coords = position_coords.get(position, (0, 0))
 
-    position_coords = {
-        'ST': (395, 72),
-        'CAM': (395, 220),
-        'GK': (395, 516),
-        'LW': (170, 111),
-        'RW': (620, 111),
-        'CB': (395, 368),
-        'RB': (569, 368),
-        'LB': (221, 368)
-    }
+                    card_image = Image.open(io.BytesIO(image_blob)).resize((card_width, card_height))
+                    lineup_image.paste(card_image, coords, card_image.convert("RGBA"))
 
-    for card in cards:
-        name, position, ovr, price, club, country, image_blob = card
-        coords = position_coords.get(position, (0, 0))
+                except Exception as e:
+                    print(f"Error processing card {card}: {e}")
+                    continue
 
-        card_image = Image.open(io.BytesIO(image_blob)).resize((card_width, card_height))
-        lineup_image.paste(card_image, coords, card_image.convert("RGBA"))
+            try:
+                with io.BytesIO() as buffer:
+                    lineup_image.save(buffer, format="PNG")
+                    buffer.seek(0)
+                    await interaction.followup.send("Here is your lineup image:", file=nextcord.File(fp=buffer, filename="lineup.png"))
+            except Exception as e:
+                await interaction.followup.send(f"Failed to generate lineup image: {e}")
 
-    return lineup_image
-
-# Function to save and send the lineup image
-async def send_lineup_image(interaction, lineup_image):
-    try:
-        # Save the image to a temporary file
-        file_path = "lineup_temp.png"
-        lineup_image.save(file_path)
-
-        # Send the file to Discord
-        await interaction.followup.send("Here is your lineup image:", file=nextcord.File(file_path))
-
-    finally:
-        # Delete the temporary file after sending
-        if os.path.exists(file_path):
-            os.remove(file_path)
+        except Exception as e:
+            await interaction.followup.send(f"An error occurred: {e}")
 
 # Helper function to format numbers (e.g., OVR VALUE)
 def format_number(value):
