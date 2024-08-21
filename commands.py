@@ -75,9 +75,9 @@ async def addcard(
 
 
 CHEMISTRY_IMAGES_URLS = {
-    'green': "https://cdn.discordapp.com/attachments/1274834660504899624/1275348784578166875/green.png?ex=66c5909d&is=66c43f1d&hm=76db963d5b7e084357fb8889627e3421913ae2f2b78ec627bd7a20991412ea17&",
-    'orange': "https://cdn.discordapp.com/attachments/1274834660504899624/1275348784351678464/yellow.png?ex=66c5909d&is=66c43f1d&hm=9db469258a31021c82eaedc025a49384b8309fe88ddd639d0aa09699b82630f8&",
-    'red': "https://cdn.discordapp.com/attachments/1274834660504899624/1275348784800600146/red.png?ex=66c5909d&is=66c43f1d&hm=895ef4e6ec4db5f16fcde2927a29b9d0ca93162efc3260deba9c5f4037619c8d&"
+    'green': "https://cdn.discordapp.com/attachments/1187893488763805750/1275752068757590046/green.png?ex=66c70833&is=66c5b6b3&hm=8cb7b6fa212a65526c6d42548c68465f6d6903ec5d66905adcea20468b9536fc&",
+    'orange': "https://cdn.discordapp.com/attachments/1187893488763805750/1275752068417716235/yellow.png?ex=66c70833&is=66c5b6b3&hm=7c60c0e2c57cc02a3445a618d2a742f4e53af637d36edad823e753e721b0a46a&",
+    'red': "https://cdn.discordapp.com/attachments/1187893488763805750/1275752069126557810/red.png?ex=66c70833&is=66c5b6b3&hm=ddb0452a63360c2da929f76e47e5e435b792b62e2e29fd884fc4bf93d076b3aa&"
 }
 
 def calculate_chemistry(cards):
