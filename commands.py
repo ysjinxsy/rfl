@@ -799,7 +799,7 @@ async def suspend(interaction: nextcord.Interaction,
 
         embed.set_footer(text=f"Suspended by {interaction.user.display_name}")
 
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.response.send_message(embed=embed)
 
     else:
         # Create embed for no permission
