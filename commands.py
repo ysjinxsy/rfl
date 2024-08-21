@@ -108,7 +108,7 @@ async def lineup(interaction: nextcord.Interaction):
             total_ovr = sum(card[2] for card in cards)
             total_value = sum(card[3] for card in cards)
 
-            background_url = "https://cdn.discordapp.com/attachments/1266732349417193619/1275567757076860979/lineupahh.png"
+            background_url = "https://cdn.discordapp.com/attachments/1224847916750082058/1275747929612746795/lineupahh.png?ex=66c70458&is=66c5b2d8&hm=38d20c0e2a73b00232102caa1f8d906b170467edd5192aa20118bdea4d139960&"
 
             try:
                 background_image_data = await download_image(background_url)
